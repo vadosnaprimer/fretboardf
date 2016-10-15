@@ -1,41 +1,65 @@
 // fretboardf.cpp : Defines the entry point for the application.
-//
 
 #include "stdafx.h"
 #include "fretboardf.h"
 
+using namespace std;
+
 #define MAX_LOADSTRING 100
 
-// Global Variables:
-HINSTANCE hInst;								// current instance
-HBITMAP hBitmap = NULL;
-TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
+// global variables:
+HINSTANCE hInst;						// current instance
+HBITMAP hBitmap = NULL;					// BG bitmap
+TCHAR szTitle[MAX_LOADSTRING];			// title bar text
+TCHAR szWindowClass[MAX_LOADSTRING];	// main window class name
 
-// Forward declarations of functions included in this code module:
+
+
+//==================== CUSTOM VARS ========================//
+
+#define TOTALFRETS 25
+
+// can't start from index 1, so give the strings names
+// in reverse order, since that's how notes are going
+enum stringnames {
+	SIX,
+	FIVE,
+	FOUR,
+	THREE,
+	TWO,
+	ONE,
+	TOTALSTRINGS,
+};
+
+char tuning[TOTALSTRINGS][3] = { "E", "A", "D", "G", "B", "E" };
+char notes[12][3] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+char *pattern[TOTALSTRINGS][TOTALFRETS] = {};
+
+//================= END OF CUSTOM VARS ====================//
+
+
+
+// forward declarations of functions included in this code module
 ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
-int APIENTRY _tWinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPTSTR    lpCmdLine,
-                     int       nCmdShow)
+int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
- 	// TODO: Place code here.
+ 	// TODO: place code here.
 	MSG msg;
 	HACCEL hAccelTable;
 
-	// Initialize global strings
+	// initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadString(hInstance, IDC_FRETBOARDF, szWindowClass, MAX_LOADSTRING);
 	MyRegisterClass(hInstance);
 
-	// Perform application initialization:
+	// perform application initialization:
 	if (!InitInstance (hInstance, nCmdShow))
 	{
 		return FALSE;
@@ -43,7 +67,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_FRETBOARDF));
 
-	// Main message loop:
+	// main message loop:
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -56,25 +80,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	return (int) msg.wParam;
 }
 
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
-//  COMMENTS:
-//
-//    This function and its usage are only necessary if you want this code
-//    to be compatible with Win32 systems prior to the 'RegisterClassEx'
-//    function that was added to Windows 95. It is important to call this function
-//    so that the application will get 'well formed' small icons associated
-//    with it.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
-
 	wcex.cbSize = sizeof(WNDCLASSEX);
-
 	wcex.style			= CS_HREDRAW | CS_VREDRAW;
 	wcex.lpfnWndProc	= WndProc;
 	wcex.cbClsExtra		= 0;
@@ -90,22 +99,11 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	return RegisterClassEx(&wcex);
 }
 
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
+// save the instance handle in a global variable, create and display the main program window
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-	HWND hWnd;
-	
-	hInst = hInstance; // Store instance handle in our global variable
-	
+	HWND hWnd;	
+	hInst = hInstance; // store instance handle in our global variable	
 	hWnd = CreateWindow(
 		szWindowClass,							// lpClassName
 		szTitle,								// lpWindowName
@@ -131,15 +129,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	return TRUE;
 }
 
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE:  Processes messages for the main window.
-//
-//  WM_COMMAND	- process the application menu
-//  WM_PAINT	- Paint the main window
-//  WM_DESTROY	- post a quit message and return
-//
+// process messages for the main window
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int wmId, wmEvent;
@@ -147,12 +137,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_CREATE:
-    	hBitmap = (HBITMAP)LoadImage(hInst, L"freatboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		for (int i=0; i<TOTALSTRINGS; i++)
+		{
+			for (int j=0; j<TOTALFRETS; j++)
+			{
+				pattern[i][j] = "-";
+			}
+		}
+
+#ifdef _DEBUG
+		AllocConsole();
+		freopen("CONIN$", "r",stdin);
+		freopen("CONOUT$", "w",stdout);
+		freopen("CONOUT$", "w",stderr);
+
+    	hBitmap = (HBITMAP)LoadImage(hInst, "freatboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		for (int i=TOTALSTRINGS-1; i>=0; i--)
+		{
+			cout << tuning[i] << " ";
+			for (int j=0; j<TOTALFRETS; j++)
+			{
+				cout << pattern[i][j];
+			}
+			cout << "\n";
+		}
+		cout << "\n";
+#endif
     	break;
+
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam);
 		wmEvent = HIWORD(wParam);
-		// Parse the menu selections:
+		// parse the menu selections:
 		switch (wmId)
 		{
 		case IDM_ABOUT:
@@ -165,6 +181,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return DefWindowProc(hWnd, message, wParam, lParam);
 		}
 		break;
+
 	case WM_PAINT:
     	PAINTSTRUCT 	ps;
     	HDC 			hdc;
@@ -173,29 +190,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         HGDIOBJ 		oldBitmap;
 
     	hdc = BeginPaint(hWnd, &ps);
-
     	hdcMem = CreateCompatibleDC(hdc);
         oldBitmap = SelectObject(hdcMem, hBitmap);
 
         GetObject(hBitmap, sizeof(bitmap), &bitmap);
         BitBlt(hdc, 1, 1, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
-
         SelectObject(hdcMem, oldBitmap);
         DeleteDC(hdcMem);
 
     	EndPaint(hWnd, &ps);
     	break;
+
 	case WM_DESTROY:
 		DeleteObject(hBitmap);
 		PostQuitMessage(0);
 		break;
+
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
 }
 
-// Message handler for about box.
+// message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
