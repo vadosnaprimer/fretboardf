@@ -44,18 +44,13 @@ enum stringnames {
 
 string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-string pattern[TOTALSTRINGS][TOTALFRETS] = {};
+bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
 string lastnote = "";
+int currentstring = 0;
+int currentfret = 0;
 
 void InitPattern()
 {
-	for (int i=0; i<TOTALSTRINGS; i++)
-	{
-		for (int j=0; j<TOTALFRETS; j++)
-		{
-			pattern[i][j] = (string)"-";
-		}
-	}
 #ifdef _DEBUG
 		AllocConsole();
 #endif
@@ -71,7 +66,7 @@ void DebugPrintPattern()
 		cout << tuning[i] << " ";
 		for (int j=0; j<TOTALFRETS; j++)
 		{
-			cout << pattern[i][j];
+			cout << (pattern[i][j] ? "+" : "-");
 		}
 		cout << "\n";
 	}
@@ -169,21 +164,24 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int wmId, wmEvent;
+	RECT cr;
 
 	switch (message)
 	{
 	case WM_CREATE:
+		GetClientRect(hWnd, &cr);
     	hBitmap = (HBITMAP)LoadImage(hInst, "freatboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 		InitPattern();
 		break;
 
 	case WM_PAINT:
     	PAINTSTRUCT 	ps;
-    	HDC 			hdc;
     	BITMAP 			bitmap;
+		HDC 			hdc;
     	HDC 			hdcMem;
         HGDIOBJ 		oldBitmap;
 
+		GetClientRect(hWnd, &cr);
     	hdc = BeginPaint(hWnd, &ps);
     	hdcMem = CreateCompatibleDC(hdc);
         oldBitmap = SelectObject(hdcMem, hBitmap);
@@ -191,7 +189,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         GetObject(hBitmap, sizeof(bitmap), &bitmap);
 		BGwidth = bitmap.bmWidth;
 		BGheight = bitmap.bmHeight;
+		
         BitBlt(hdc, 1, 1, BGwidth, BGheight, hdcMem, 0, 0, SRCCOPY);
+
+		SetBkColor  (hdc, 0x000000ff);
+		SetTextColor(hdc, 0x00ffffff);
+
+		for (int str=0; str<TOTALSTRINGS; str++)
+		{
+			for (int fret=0; fret<TOTALFRETS; fret++)
+			{
+				if (pattern[str][fret])
+				{
+					string root = tuning[str];
+					int offset;
+					for (offset=0; offset<TOTALNOTES; offset++)
+					{
+						if (notes[offset] == root)
+							break;
+					}
+					int s = 6;
+					string note = notes[(offset + fret) % TOTALNOTES];
+					int cur = SCALELENGTH+s - ((SCALELENGTH+s) / pow((float)2, (float)fret / TOTALNOTES));
+					int prev = fret == 0 ? 0 : SCALELENGTH+s - ((SCALELENGTH+s) / pow((float)2, (float)(fret - 1) / TOTALNOTES));
+					int x = prev + (cur - prev) / 2;
+					int y = cr.bottom / 6 * (TOTALSTRINGS - 1 - str);
+					MoveToEx(hdc, 0, 0, NULL);
+					TextOut(hdc, x, y, note.c_str(), note.length());
+				}
+			}
+		}
         SelectObject(hdcMem, oldBitmap);
         DeleteDC(hdcMem);
 
@@ -200,30 +227,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_MOUSEMOVE:
 	{
+		char header[100];
 		POINT Mouse;
 		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
-		RECT cr;
-		GetClientRect(hWnd, &cr);
 		Mouse.x -= 8;
-		int str     = Mouse.y / (cr.bottom / 6);
-		// Mouse.x  = SCALELENGTH – (SCALELENGTH / (2 ^ (fret / TOTALNOTES))) // origninal formula
-		int fret    = (TOTALNOTES * log((float)SCALELENGTH / (SCALELENGTH - Mouse.x))) / (log(2.0)) + 1;
-		if (fret > TOTALFRETS - 1)
-			fret = TOTALFRETS - 1;
-		string root = tuning[str];
+		GetClientRect(hWnd, &cr);
+		currentstring = Mouse.y / (cr.bottom / 6);
+		currentfret   = (TOTALNOTES * log((float)SCALELENGTH / (SCALELENGTH - Mouse.x))) / (log(2.0)) + 1;
+		if (currentfret > TOTALFRETS - 1)
+			currentfret = TOTALFRETS - 1;
+		string root = tuning[currentstring];
 		int offset;
 		for (offset=0; offset<TOTALNOTES; offset++)
 		{
 			if (notes[offset] == root)
 				break;
 		}
-		string note = notes[(offset + fret) % TOTALNOTES];
-		char header[100];
-		sprintf(header, "%3s    %d : %d", note.c_str(), str+1, fret);
+		string note = notes[(offset + currentfret) % TOTALNOTES];
+		sprintf(header, "%s    %d : %d", note.c_str(), currentstring + 1, currentfret);
 		if (note != lastnote)
 			SetWindowText(hWnd, header);
 		break;
 	}
+
+	case WM_LBUTTONDOWN:
+		GetClientRect(hWnd, &cr);
+		pattern[TOTALSTRINGS - 1 - currentstring][currentfret] ^= 1;
+		DebugPrintPattern();
+		InvalidateRect(hWnd, &cr, 1);
 
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam);
