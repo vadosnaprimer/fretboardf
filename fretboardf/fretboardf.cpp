@@ -12,12 +12,23 @@ HINSTANCE hInst;						// current instance
 HBITMAP hBitmap = NULL;					// BG bitmap
 TCHAR szTitle[MAX_LOADSTRING];			// title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];	// main window class name
+int BGwidth = 0;
+int BGheight = 0;
 
+// forward declarations of functions included in this code module
+ATOM				MyRegisterClass(HINSTANCE hInstance);
+BOOL				InitInstance(HINSTANCE, int);
+LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
+//==================== CUSTOM CODE ========================//
 
-//==================== CUSTOM VARS ========================//
+#define TOTALFRETS  25
+#define TOTALNOTES  12
+#define SCALELENGTH 819
 
-#define TOTALFRETS 25
+void DebugPrintPattern(void);
+void InitPattern(void);
 
 // can't start from index 1, so give the strings names
 // in reverse order, since that's how notes are going
@@ -31,19 +42,44 @@ enum stringnames {
 	TOTALSTRINGS,
 };
 
-char tuning[TOTALSTRINGS][3] = { "E", "A", "D", "G", "B", "E" };
-char notes[12][3] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-char *pattern[TOTALSTRINGS][TOTALFRETS] = {};
+string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
+string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+string pattern[TOTALSTRINGS][TOTALFRETS] = {};
+string lastnote = "";
 
-//================= END OF CUSTOM VARS ====================//
+void InitPattern()
+{
+	for (int i=0; i<TOTALSTRINGS; i++)
+	{
+		for (int j=0; j<TOTALFRETS; j++)
+		{
+			pattern[i][j] = (string)"-";
+		}
+	}
+#ifdef _DEBUG
+		AllocConsole();
+#endif
+		DebugPrintPattern();
+}
 
+void DebugPrintPattern()
+{
+#ifdef _DEBUG
+	freopen("CONOUT$", "w", stdout);
+	for (int i=TOTALSTRINGS-1; i>=0; i--)
+	{
+		cout << tuning[i] << " ";
+		for (int j=0; j<TOTALFRETS; j++)
+		{
+			cout << pattern[i][j];
+		}
+		cout << "\n";
+	}
+	cout << "\n";
+#endif
+}
 
-
-// forward declarations of functions included in this code module
-ATOM				MyRegisterClass(HINSTANCE hInstance);
-BOOL				InitInstance(HINSTANCE, int);
-LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
+//================= END OF CUSTOM CODE ====================//
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -137,49 +173,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_CREATE:
-		for (int i=0; i<TOTALSTRINGS; i++)
-		{
-			for (int j=0; j<TOTALFRETS; j++)
-			{
-				pattern[i][j] = "-";
-			}
-		}
-
-#ifdef _DEBUG
-		AllocConsole();
-		freopen("CONIN$", "r",stdin);
-		freopen("CONOUT$", "w",stdout);
-		freopen("CONOUT$", "w",stderr);
-
     	hBitmap = (HBITMAP)LoadImage(hInst, "freatboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-		for (int i=TOTALSTRINGS-1; i>=0; i--)
-		{
-			cout << tuning[i] << " ";
-			for (int j=0; j<TOTALFRETS; j++)
-			{
-				cout << pattern[i][j];
-			}
-			cout << "\n";
-		}
-		cout << "\n";
-#endif
-    	break;
-
-	case WM_COMMAND:
-		wmId    = LOWORD(wParam);
-		wmEvent = HIWORD(wParam);
-		// parse the menu selections:
-		switch (wmId)
-		{
-		case IDM_ABOUT:
-			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-			break;
-		case IDM_EXIT:
-			DestroyWindow(hWnd);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
-		}
+		InitPattern();
 		break;
 
 	case WM_PAINT:
@@ -194,12 +189,57 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         oldBitmap = SelectObject(hdcMem, hBitmap);
 
         GetObject(hBitmap, sizeof(bitmap), &bitmap);
-        BitBlt(hdc, 1, 1, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+		BGwidth = bitmap.bmWidth;
+		BGheight = bitmap.bmHeight;
+        BitBlt(hdc, 1, 1, BGwidth, BGheight, hdcMem, 0, 0, SRCCOPY);
         SelectObject(hdcMem, oldBitmap);
         DeleteDC(hdcMem);
 
     	EndPaint(hWnd, &ps);
     	break;
+
+	case WM_MOUSEMOVE:
+	{
+		POINT Mouse;
+		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
+		RECT cr;
+		GetClientRect(hWnd, &cr);
+		Mouse.x -= 8;
+		int str     = Mouse.y / (cr.bottom / 6);
+		// Mouse.x  = SCALELENGTH – (SCALELENGTH / (2 ^ (fret / TOTALNOTES))) // origninal formula
+		int fret    = (TOTALNOTES * log((float)SCALELENGTH / (SCALELENGTH - Mouse.x))) / (log(2.0)) + 1;
+		if (fret > TOTALFRETS - 1)
+			fret = TOTALFRETS - 1;
+		string root = tuning[str];
+		int offset;
+		for (offset=0; offset<TOTALNOTES; offset++)
+		{
+			if (notes[offset] == root)
+				break;
+		}
+		string note = notes[(offset + fret) % TOTALNOTES];
+		char header[100];
+		sprintf(header, "%3s    %d : %d", note.c_str(), str+1, fret);
+		if (note != lastnote)
+			SetWindowText(hWnd, header);
+		break;
+	}
+
+	case WM_COMMAND:
+		wmId    = LOWORD(wParam);
+		wmEvent = HIWORD(wParam);
+		switch (wmId)
+		{
+		case IDM_ABOUT:
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+		}
+		break;
 
 	case WM_DESTROY:
 		DeleteObject(hBitmap);
