@@ -10,8 +10,10 @@ using namespace std;
 // global variables:
 HINSTANCE hInst;						// current instance
 HBITMAP hBitmap = NULL;					// BG bitmap
+HFONT hFont = NULL;
 TCHAR szTitle[MAX_LOADSTRING];			// title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];	// main window class name
+int ScaleLength = 825;
 int BGwidth = 0;
 int BGheight = 0;
 
@@ -25,7 +27,6 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 #define TOTALFRETS  25
 #define TOTALNOTES  12
-#define SCALELENGTH 819
 
 void DebugPrintPattern(void);
 void InitPattern(void);
@@ -66,6 +67,7 @@ void DebugPrintPattern()
 		cout << tuning[i] << " ";
 		for (int j=0; j<TOTALFRETS; j++)
 		{
+		//	pattern[i][j] = 1; // for debug
 			cout << (pattern[i][j] ? "+" : "-");
 		}
 		cout << "\n";
@@ -127,6 +129,14 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	wcex.lpszClassName	= szWindowClass;
 	wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
+	hFont = CreateFont(
+		14, 6,							// height, width
+		0, 0, 600,						// escapement, orientation, weight
+		FALSE, FALSE, FALSE,			// italic, underline, strikeout
+		ANSI_CHARSET, OUT_DEVICE_PRECIS,// charset, precision
+		CLIP_MASK, CLEARTYPE_NATURAL_QUALITY,		// clipping, quality
+		DEFAULT_PITCH, "Arial");		// pitch, name
+
 	return RegisterClassEx(&wcex);
 }
 
@@ -136,17 +146,17 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	HWND hWnd;	
 	hInst = hInstance; // store instance handle in our global variable	
 	hWnd = CreateWindow(
-		szWindowClass,							// lpClassName
-		szTitle,								// lpWindowName
-		WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME,	// dwStyle
-		400,									// x
-		400,									// y
-		632,									// nWidth
-		138,									// nHeight
-		NULL,									// hWndParent
-		NULL,									// hMenu
-		hInstance,								// hInstance
-		NULL									// lpParam
+		szWindowClass,			// lpClassName
+		szTitle,				// lpWindowName
+		WS_OVERLAPPEDWINDOW,	// dwStyle
+		400,					// x
+		400,					// y
+		923,					// nWidth
+		149,					// nHeight
+		NULL,					// hWndParent
+		NULL,					// hMenu
+		hInstance,				// hInstance
+		NULL					// lpParam
 	);
 	
 	if (!hWnd)
@@ -170,11 +180,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 		GetClientRect(hWnd, &cr);
-    	hBitmap = (HBITMAP)LoadImage(hInst, "freatboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 		InitPattern();
 		break;
 
 	case WM_PAINT:
+	{
     	PAINTSTRUCT 	ps;
     	BITMAP 			bitmap;
 		HDC 			hdc;
@@ -185,15 +196,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     	hdc = BeginPaint(hWnd, &ps);
     	hdcMem = CreateCompatibleDC(hdc);
         oldBitmap = SelectObject(hdcMem, hBitmap);
-
         GetObject(hBitmap, sizeof(bitmap), &bitmap);
 		BGwidth = bitmap.bmWidth;
 		BGheight = bitmap.bmHeight;
 		
-        BitBlt(hdc, 1, 1, BGwidth, BGheight, hdcMem, 0, 0, SRCCOPY);
-
+		SetStretchBltMode(hdc, HALFTONE);
+        StretchBlt(hdc, cr.top, cr.left, cr.right, cr.bottom, hdcMem, 0, 0, BGwidth, BGheight, SRCCOPY);		
+		SelectObject(hdc, hFont);
 		SetBkColor  (hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
+		ScaleLength = cr.right * 1.305;
 
 		for (int str=0; str<TOTALSTRINGS; str++)
 		{
@@ -208,12 +220,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						if (notes[offset] == root)
 							break;
 					}
-					int s = 6;
 					string note = notes[(offset + fret) % TOTALNOTES];
-					int cur = SCALELENGTH+s - ((SCALELENGTH+s) / pow((float)2, (float)fret / TOTALNOTES));
-					int prev = fret == 0 ? 0 : SCALELENGTH+s - ((SCALELENGTH+s) / pow((float)2, (float)(fret - 1) / TOTALNOTES));
-					int x = prev + (cur - prev) / 2;
-					int y = cr.bottom / 6 * (TOTALSTRINGS - 1 - str);
+					int cur = ScaleLength - ((ScaleLength) / pow((float)2, (float)fret / TOTALNOTES));
+					int prev = fret == 0 ? 0 : ScaleLength - ((ScaleLength) / pow((float)2, (float)(fret - 1) / TOTALNOTES));
+					int x = float(prev + (cur - prev) / 2);
+					float strheight = (float)cr.bottom / TOTALSTRINGS;
+					int y = strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7;
+					if (note.length() == 1)
+						x += 3;
+					if (fret == 0)
+						x = 0;
+					else
+						x += 2;
 					MoveToEx(hdc, 0, 0, NULL);
 					TextOut(hdc, x, y, note.c_str(), note.length());
 				}
@@ -224,18 +242,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     	EndPaint(hWnd, &ps);
     	break;
+	}
 
 	case WM_MOUSEMOVE:
 	{
 		char header[100];
 		POINT Mouse;
 		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
-		Mouse.x -= 8;
+		Mouse.x -= 11;
 		GetClientRect(hWnd, &cr);
 		currentstring = Mouse.y / (cr.bottom / 6);
-		currentfret   = (TOTALNOTES * log((float)SCALELENGTH / (SCALELENGTH - Mouse.x))) / (log(2.0)) + 1;
+		currentfret   = (TOTALNOTES * log((float)ScaleLength / (ScaleLength - Mouse.x))) / (log(2.0)) + 1;
 		if (currentfret > TOTALFRETS - 1)
 			currentfret = TOTALFRETS - 1;
+		if (currentstring > TOTALSTRINGS - 1)
+			currentstring = TOTALSTRINGS - 1;
 		string root = tuning[currentstring];
 		int offset;
 		for (offset=0; offset<TOTALNOTES; offset++)
@@ -252,9 +273,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_LBUTTONDOWN:
 		GetClientRect(hWnd, &cr);
-		pattern[TOTALSTRINGS - 1 - currentstring][currentfret] ^= 1;
+		pattern[TOTALSTRINGS - currentstring - 1][currentfret] ^= 1;
 		DebugPrintPattern();
-		InvalidateRect(hWnd, &cr, 1);
+		InvalidateRect(hWnd, &cr, 0);
 
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam);
@@ -274,6 +295,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_DESTROY:
 		DeleteObject(hBitmap);
+		DeleteObject(hFont);
+		hFont = NULL;
 		PostQuitMessage(0);
 		break;
 
