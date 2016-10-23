@@ -1,5 +1,7 @@
 // fretboardf.cpp : Defines the entry point for the application.
 
+// http://www.liutaiomottola.com/formulae/fret.htm
+
 #include "stdafx.h"
 #include "fretboardf.h"
 
@@ -205,7 +207,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SelectObject(hdc, hFont);
 		SetBkColor  (hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
-		ScaleLength = cr.right * 1.305;
+		ScaleLength = cr.right * 1.305f;
 
 		for (int str=0; str<TOTALSTRINGS; str++)
 		{
@@ -252,7 +254,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		Mouse.x -= 11;
 		GetClientRect(hWnd, &cr);
 		currentstring = Mouse.y / (cr.bottom / 6);
-		currentfret   = (TOTALNOTES * log((float)ScaleLength / (ScaleLength - Mouse.x))) / (log(2.0)) + 1;
+		currentfret   = (TOTALNOTES * log((float)ScaleLength / (ScaleLength - Mouse.x))) / (log(2.0f)) + 1;
 		if (currentfret > TOTALFRETS - 1)
 			currentfret = TOTALFRETS - 1;
 		if (currentstring > TOTALSTRINGS - 1)
@@ -282,6 +284,43 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		wmEvent = HIWORD(wParam);
 		switch (wmId)
 		{
+		case ID_FILE_LOAD:
+
+		case ID_FILE_SAVEAS:
+		{
+			char filename[MAX_PATH];
+			OPENFILENAME ofn;
+			ZeroMemory(&filename, sizeof(filename));
+			ZeroMemory(&ofn,      sizeof(ofn));
+			ofn.lStructSize  = sizeof(ofn);
+			ofn.hwndOwner    = NULL;
+			ofn.lpstrFilter  = "Text Files\0*.txt\0Any File\0*.*\0";
+			ofn.lpstrFile    = filename;
+			ofn.nMaxFile     = MAX_PATH;
+			ofn.lpstrTitle   = "Select a File";
+			ofn.Flags        = OFN_FILEMUSTEXIST;
+			ofn.lpstrDefExt  = (LPCSTR)"txt";
+  
+			GetModuleFileName(NULL, filename, MAX_PATH);
+			PathRemoveFileSpec(filename);
+			strcat(filename, "\\pattern");
+			if (GetSaveFileName(&ofn))
+			{
+				std::ofstream out(filename);
+				for (int i=TOTALSTRINGS-1; i>=0; i--)
+				{
+					out << tuning[i] << " ";
+					for (int j=0; j<TOTALFRETS; j++)
+					{
+						out << (pattern[i][j] ? "+" : "-");
+					}
+					out << "\n";
+				}
+				out.close();
+			}
+
+			break;
+		}
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;

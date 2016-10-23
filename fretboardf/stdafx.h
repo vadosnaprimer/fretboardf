@@ -12,9 +12,12 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files:
 #include <windows.h>
+#include <commdlg.h>
+#include "shlwapi.h"
 
 // C RunTime Header Files
 #include <string>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
