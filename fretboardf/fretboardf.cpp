@@ -10,11 +10,11 @@ using namespace std;
 #define MAX_LOADSTRING 100
 
 // global variables:
-HINSTANCE hInst;						// current instance
-HBITMAP hBitmap = NULL;					// BG bitmap
+HINSTANCE hInst;
+HBITMAP hBitmap = NULL;
 HFONT hFont = NULL;
-TCHAR szTitle[MAX_LOADSTRING];			// title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];	// main window class name
+TCHAR szTitle[MAX_LOADSTRING];
+TCHAR szWindowClass[MAX_LOADSTRING];
 int ScaleLength = 825;
 int BGwidth = 0;
 int BGheight = 0;
@@ -29,9 +29,6 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 #define TOTALFRETS  25
 #define TOTALNOTES  12
-
-void DebugPrintPattern(void);
-void InitPattern(void);
 
 // can't start from index 1, so give the strings names
 // in reverse order, since that's how notes are going
@@ -52,14 +49,6 @@ string lastnote = "";
 int currentstring = 0;
 int currentfret = 0;
 
-void InitPattern()
-{
-#ifdef _DEBUG
-		AllocConsole();
-#endif
-		DebugPrintPattern();
-}
-
 void DebugPrintPattern()
 {
 #ifdef _DEBUG
@@ -76,6 +65,25 @@ void DebugPrintPattern()
 	}
 	cout << "\n";
 #endif
+}
+
+void UpdateWindow(HWND hWnd, RECT *cr)
+{
+	DebugPrintPattern();
+	GetClientRect(hWnd, cr);
+	InvalidateRect(hWnd, cr, 0);
+}
+
+void InitPattern()
+{
+	for (int i=TOTALSTRINGS-1; i>=0; i--)
+	{
+		for (int j=0; j<TOTALFRETS; j++)
+		{
+			pattern[i][j] = false;
+		}
+	}
+	DebugPrintPattern();
 }
 
 //================= END OF CUSTOM CODE ====================//
@@ -183,6 +191,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_CREATE:
 		GetClientRect(hWnd, &cr);
     	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+#ifdef _DEBUG
+		AllocConsole();
+#endif
 		InitPattern();
 		break;
 
@@ -241,7 +252,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
         SelectObject(hdcMem, oldBitmap);
         DeleteDC(hdcMem);
-
     	EndPaint(hWnd, &ps);
     	break;
 	}
@@ -274,17 +284,59 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	case WM_LBUTTONDOWN:
-		GetClientRect(hWnd, &cr);
 		pattern[TOTALSTRINGS - currentstring - 1][currentfret] ^= 1;
-		DebugPrintPattern();
-		InvalidateRect(hWnd, &cr, 0);
+		UpdateWindow(hWnd, &cr);
+		break;
 
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam);
 		wmEvent = HIWORD(wParam);
 		switch (wmId)
 		{
-		case ID_FILE_LOAD:
+		case ID_FILE_NEWPATTERN:
+		{
+			InitPattern();
+			UpdateWindow(hWnd, &cr);
+			break;
+		}
+		case ID_FILE_LOADPATTERN:
+		{
+			char filename[MAX_PATH];
+			OPENFILENAME ofn;
+			ZeroMemory(&filename, sizeof(filename));
+			ZeroMemory(&ofn,      sizeof(ofn));
+			GetModuleFileName(NULL, filename, MAX_PATH);
+			PathRemoveFileSpec(filename);
+
+			ofn.lStructSize     = sizeof(ofn);
+			ofn.hwndOwner       = NULL;
+			ofn.lpstrInitialDir = filename;
+			strcat(filename,    "\\pattern");
+			ofn.lpstrFile       = filename;
+			ofn.lpstrFilter     = "Text Files\0*.txt\0Any File\0*.*\0";
+			ofn.nMaxFile        = MAX_PATH;
+			ofn.lpstrTitle      = "Select a File";
+			ofn.Flags           = OFN_FILEMUSTEXIST;
+			ofn.lpstrDefExt     = (LPCSTR)"txt";
+
+			if (GetOpenFileName(&ofn))
+			{
+				ifstream in(filename);
+				string line;
+				for (int i=TOTALSTRINGS-1; i>=0; i--)
+				{
+					in >> line;
+					for (int j=0; j<TOTALFRETS; j++)
+					{
+						pattern[i][j] = (line[j] == '+');
+					}
+					in.ignore();
+				}
+				in.close();
+			}
+			UpdateWindow(hWnd, &cr);
+			break;
+		}
 
 		case ID_FILE_SAVEAS:
 		{
@@ -292,24 +344,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			OPENFILENAME ofn;
 			ZeroMemory(&filename, sizeof(filename));
 			ZeroMemory(&ofn,      sizeof(ofn));
-			ofn.lStructSize  = sizeof(ofn);
-			ofn.hwndOwner    = NULL;
-			ofn.lpstrFilter  = "Text Files\0*.txt\0Any File\0*.*\0";
-			ofn.lpstrFile    = filename;
-			ofn.nMaxFile     = MAX_PATH;
-			ofn.lpstrTitle   = "Select a File";
-			ofn.Flags        = OFN_FILEMUSTEXIST;
-			ofn.lpstrDefExt  = (LPCSTR)"txt";
-  
 			GetModuleFileName(NULL, filename, MAX_PATH);
 			PathRemoveFileSpec(filename);
-			strcat(filename, "\\pattern");
+
+			ofn.lStructSize     = sizeof(ofn);
+			ofn.hwndOwner       = NULL;
+			ofn.lpstrInitialDir = filename;
+			strcat(filename,    "\\pattern");
+			ofn.lpstrFile       = filename;
+			ofn.lpstrFilter     = "Text Files\0*.txt\0Any File\0*.*\0";
+			ofn.nMaxFile        = MAX_PATH;
+			ofn.lpstrTitle      = "Select a File";
+			ofn.Flags           = OFN_FILEMUSTEXIST;
+			ofn.lpstrDefExt     = (LPCSTR)"txt";
+  
 			if (GetSaveFileName(&ofn))
 			{
-				std::ofstream out(filename);
+				ofstream out(filename);
 				for (int i=TOTALSTRINGS-1; i>=0; i--)
 				{
-					out << tuning[i] << " ";
 					for (int j=0; j<TOTALFRETS; j++)
 					{
 						out << (pattern[i][j] ? "+" : "-");
@@ -318,7 +371,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				out.close();
 			}
-
 			break;
 		}
 		case IDM_ABOUT:
