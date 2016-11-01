@@ -11,29 +11,24 @@ using namespace std;
 #define TOTALSTRINGS   6
 #define TOTALFRETS     25
 #define TOTALNOTES     12
+#define POSTOFRET(x)   (TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f))
+#define FRETTOPOS(x)   ScaleLength - ((ScaleLength) / pow((float)2, (float)(x) / TOTALNOTES))
 
 // global variables:
 HINSTANCE hInst;
 HBITMAP hBitmap = NULL;
 HFONT hFont = NULL;
-TCHAR szTitle[MAX_LOADSTRING];
-TCHAR szWindowClass[MAX_LOADSTRING];
 
-int ScaleLength = 825;
+int ScaleLength = 0;
 int BGwidth = 0;
 int BGheight = 0;
-int currentstring = 0;
-int currentfret = 0;
+int CurrentString = 0;
+int CurrentFret = 0;
+int ClientOffset = 46;
 bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
 string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 string lastnote = "";
-
-// forward declarations of functions included in this code module
-ATOM				MyRegisterClass(HINSTANCE hInstance);
-BOOL				InitInstance(HINSTANCE, int);
-LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 void DebugPrintPattern()
 {
@@ -56,6 +51,7 @@ void DebugPrintPattern()
 void UpdateWindow(HWND hWnd, RECT *cr)
 {
 	DebugPrintPattern();
+	cr->left -= 8;
 	GetClientRect(hWnd, cr);
 	InvalidateRect(hWnd, cr, 0);
 }
@@ -71,65 +67,27 @@ void InitPattern()
 	}
 	DebugPrintPattern();
 }
-/*
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
-	WNDCLASSEX wcex;
-	wcex.cbSize = sizeof(WNDCLASSEX);
-	wcex.style			= CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc	= WndProc;
-	wcex.cbClsExtra		= 0;
-	wcex.cbWndExtra		= 0;
-	wcex.hInstance		= hInstance;
-	wcex.hIcon			= LoadIcon(hInstance, MAKEINTRESOURCE(IDI_FRETBOARDF));
-	wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
-	wcex.lpszMenuName	= MAKEINTRESOURCE(IDC_FRETBOARDF);
-	wcex.lpszClassName	= szWindowClass;
-	wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-	hFont = CreateFont(
-		14, 6,							// height, width
-		0, 0, 600,						// escapement, orientation, weight
-		FALSE, FALSE, FALSE,			// italic, underline, strikeout
-		ANSI_CHARSET, OUT_DEVICE_PRECIS,// charset, precision
-		CLIP_MASK, CLEARTYPE_NATURAL_QUALITY,		// clipping, quality
-		DEFAULT_PITCH, "Arial");		// pitch, name
-
-	return RegisterClassEx(&wcex);
-}
-*/
-// save the instance handle in a global variable, create and display the main program window
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	HWND hWnd;	
-	hInst = hInstance; // store instance handle in our global variable	
-	hWnd = CreateWindow(
-		szWindowClass,			// lpClassName
-		szTitle,				// lpWindowName
-		WS_OVERLAPPEDWINDOW,	// dwStyle
-		400,					// x
-		400,					// y
-		923,					// nWidth
-		149,					// nHeight
-		NULL,					// hWndParent
-		NULL,					// hMenu
-		hInstance,				// hInstance
-		NULL					// lpParam
-	);
-	
-	if (!hWnd)
+	HWND hWndEdit = GetDlgItem(hDlg, IDC_EDIT1);
+	switch (message)
 	{
-	   return FALSE;
+	case WM_INITDIALOG:
+		SetWindowText(hWndEdit, _T("https://github.com/vadosnaprimer/fretboardf"));
+		return 1;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return 1;
+		}
+		break;
 	}
-	
-	ShowWindow(hWnd, nCmdShow);
-	UpdateWindow(hWnd);
-	
-	return TRUE;
+	return 0;
 }
 
-// process messages for the main window
 BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	RECT cr;
@@ -153,20 +111,22 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     	HDC 			hdcMem;
         HGDIOBJ 		oldBitmap;
 
-		GetClientRect(hWnd, &cr);
-    	hdc = BeginPaint(hWnd, &ps);
-    	hdcMem = CreateCompatibleDC(hdc);
-        oldBitmap = SelectObject(hdcMem, hBitmap);
         GetObject(hBitmap, sizeof(bitmap), &bitmap);
-		BGwidth = bitmap.bmWidth;
-		BGheight = bitmap.bmHeight;
+		GetClientRect(hWnd, &cr);
+    	hdc       = BeginPaint(hWnd, &ps);
+    	hdcMem    = CreateCompatibleDC(hdc);
+        oldBitmap = SelectObject(hdcMem, hBitmap);
+		BGwidth   = bitmap.bmWidth;
+		BGheight  = bitmap.bmHeight;
+		cr.left  += ClientOffset;
+		cr.right -= ClientOffset;
 		
 		SetStretchBltMode(hdc, HALFTONE);
-        StretchBlt(hdc, cr.top, cr.left, cr.right, cr.bottom, hdcMem, 0, 0, BGwidth, BGheight, SRCCOPY);		
+        StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 0, BGwidth, BGheight, SRCCOPY);		
 		SelectObject(hdc, hFont);
 		SetBkColor  (hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
-		ScaleLength = cr.right * 1.305f;
+		ScaleLength = cr.right * 1.308f;
 
 		for (int str=0; str<TOTALSTRINGS; str++)
 		{
@@ -182,15 +142,15 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							break;
 					}
 					string note = notes[(offset + fret) % TOTALNOTES];
-					int cur = ScaleLength - ((ScaleLength) / pow((float)2, (float)fret / TOTALNOTES));
-					int prev = fret == 0 ? 0 : ScaleLength - ((ScaleLength) / pow((float)2, (float)(fret - 1) / TOTALNOTES));
-					int x = float(prev + (cur - prev) / 2);
+					int cur = FRETTOPOS(fret);
+					int prev = fret == 0 ? 0 : FRETTOPOS(fret - 1);
+					int x = float(prev + (cur - prev) / 2) + ClientOffset;
 					float strheight = (float)cr.bottom / TOTALSTRINGS;
 					int y = strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7;
 					if (note.length() == 1)
 						x += 3;
 					if (fret == 0)
-						x = 0;
+						x = ClientOffset;
 					else
 						x += 2;
 					MoveToEx(hdc, 0, 0, NULL);
@@ -209,30 +169,34 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		char header[100];
 		POINT Mouse;
 		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
-		Mouse.x -= 11;
+		Mouse.x -= 56;
 		GetClientRect(hWnd, &cr);
-		currentstring = Mouse.y / (cr.bottom / 6);
-		currentfret   = (TOTALNOTES * log((float)ScaleLength / (ScaleLength - Mouse.x))) / (log(2.0f)) + 1;
-		if (currentfret > TOTALFRETS - 1)
-			currentfret = TOTALFRETS - 1;
-		if (currentstring > TOTALSTRINGS - 1)
-			currentstring = TOTALSTRINGS - 1;
-		string root = tuning[currentstring];
+		CurrentString = Mouse.y / (cr.bottom / 6);
+		CurrentFret   = POSTOFRET(Mouse.x) + 1;
+		if (CurrentFret > TOTALFRETS - 1)
+			CurrentFret = TOTALFRETS - 1;
+		if (CurrentString > TOTALSTRINGS - 1)
+			CurrentString = TOTALSTRINGS - 1;
+		string root = tuning[CurrentString];
 		int offset;
 		for (offset=0; offset<TOTALNOTES; offset++)
 		{
 			if (notes[offset] == root)
 				break;
 		}
-		string note = notes[(offset + currentfret) % TOTALNOTES];
-		sprintf(header, "%s    %d : %d", note.c_str(), currentstring + 1, currentfret);
+		string note = notes[(offset + CurrentFret) % TOTALNOTES];
+		sprintf(header, "%s    %d : %d", note.c_str(), CurrentString + 1, CurrentFret);
 		if (note != lastnote)
 			SetWindowText(hWnd, header);
 		return 1;
 	}
 
 	case WM_LBUTTONDOWN:
-		pattern[TOTALSTRINGS - currentstring - 1][currentfret] ^= 1;
+		pattern[TOTALSTRINGS - CurrentString - 1][CurrentFret] ^= 1;
+		UpdateWindow(hWnd, &cr);
+		return 1;
+
+	case WM_SIZE:
 		UpdateWindow(hWnd, &cr);
 		return 1;
 
@@ -338,53 +302,28 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-// message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	UNREFERENCED_PARAMETER(lParam);
-	HWND hWndEdit = GetDlgItem(hDlg, IDC_EDIT1);
-	switch (message)
-	{
-	case WM_INITDIALOG:
-		SetWindowText(hWndEdit, _T("https://github.com/vadosnaprimer/fretboardf"));
-		return (INT_PTR)TRUE;
-
-	case WM_COMMAND:
-		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-		{
-			EndDialog(hDlg, LOWORD(wParam));
-			return (INT_PTR)TRUE;
-		}
-		break;
-	}
-	return (INT_PTR)FALSE;
-}
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
 	HWND hDialog = 0;
 	MSG msg;
 	int status;
-	//HACCEL hAccelTable;
 	hInst = hInstance;
 
-	// initialize global strings
-	//LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-	//LoadString(hInstance, IDC_FRETBOARDF, szWindowClass, MAX_LOADSTRING);
-	//MyRegisterClass(hInstance);
+	hFont = CreateFont(
+		14, 6,									// height, width
+		0, 0, 600,								// escapement, orientation, weight
+		FALSE, FALSE, FALSE,					// italic, underline, strikeout
+		ANSI_CHARSET, OUT_DEVICE_PRECIS,		// charset, precision
+		CLIP_MASK, CLEARTYPE_NATURAL_QUALITY,	// clipping, quality
+		DEFAULT_PITCH, "Arial");				// pitch, name
+
 	hDialog = CreateDialog(hInstance, MAKEINTRESOURCE(DLG_MAIN), 0, DialogProc);
+
 	if (!hDialog)
     {
         return 1;
     }
 
-	// perform application initialization:
-	//if (!InitInstance (hInstance, nCmdShow))
-	//{
-	//	return FALSE;
-	//}
-
-	// main message loop:
 	while ((status = GetMessage(&msg, 0, 0, 0)) != 0)
 	{
 		if (status == -1)
