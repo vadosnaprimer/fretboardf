@@ -8,6 +8,9 @@
 using namespace std;
 
 #define MAX_LOADSTRING 100
+#define TOTALSTRINGS   6
+#define TOTALFRETS     25
+#define TOTALNOTES     12
 
 // global variables:
 HINSTANCE hInst;
@@ -15,39 +18,22 @@ HBITMAP hBitmap = NULL;
 HFONT hFont = NULL;
 TCHAR szTitle[MAX_LOADSTRING];
 TCHAR szWindowClass[MAX_LOADSTRING];
+
 int ScaleLength = 825;
 int BGwidth = 0;
 int BGheight = 0;
+int currentstring = 0;
+int currentfret = 0;
+bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
+string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
+string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+string lastnote = "";
 
 // forward declarations of functions included in this code module
 ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
-
-//==================== CUSTOM CODE ========================//
-
-#define TOTALFRETS  25
-#define TOTALNOTES  12
-
-// can't start from index 1, so give the strings names
-// in reverse order, since that's how notes are going
-enum stringnames {
-	SIX,
-	FIVE,
-	FOUR,
-	THREE,
-	TWO,
-	ONE,
-	TOTALSTRINGS,
-};
-
-string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
-string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
-string lastnote = "";
-int currentstring = 0;
-int currentfret = 0;
 
 void DebugPrintPattern()
 {
@@ -85,44 +71,7 @@ void InitPattern()
 	}
 	DebugPrintPattern();
 }
-
-//================= END OF CUSTOM CODE ====================//
-
-int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
-{
-	UNREFERENCED_PARAMETER(hPrevInstance);
-	UNREFERENCED_PARAMETER(lpCmdLine);
-
- 	// TODO: place code here.
-	MSG msg;
-	HACCEL hAccelTable;
-
-	// initialize global strings
-	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-	LoadString(hInstance, IDC_FRETBOARDF, szWindowClass, MAX_LOADSTRING);
-	MyRegisterClass(hInstance);
-
-	// perform application initialization:
-	if (!InitInstance (hInstance, nCmdShow))
-	{
-		return FALSE;
-	}
-
-	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_FRETBOARDF));
-
-	// main message loop:
-	while (GetMessage(&msg, NULL, 0, 0))
-	{
-		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-	}
-
-	return (int) msg.wParam;
-}
-
+/*
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
@@ -149,7 +98,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 	return RegisterClassEx(&wcex);
 }
-
+*/
 // save the instance handle in a global variable, create and display the main program window
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
@@ -181,21 +130,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 }
 
 // process messages for the main window
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	int wmId, wmEvent;
 	RECT cr;
 
 	switch (message)
 	{
-	case WM_CREATE:
+	case WM_INITDIALOG:
 		GetClientRect(hWnd, &cr);
     	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 #ifdef _DEBUG
 		AllocConsole();
 #endif
 		InitPattern();
-		break;
+		return 1;
 
 	case WM_PAINT:
 	{
@@ -253,7 +201,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SelectObject(hdcMem, oldBitmap);
         DeleteDC(hdcMem);
     	EndPaint(hWnd, &ps);
-    	break;
+    	return 1;
 	}
 
 	case WM_MOUSEMOVE:
@@ -280,24 +228,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		sprintf(header, "%s    %d : %d", note.c_str(), currentstring + 1, currentfret);
 		if (note != lastnote)
 			SetWindowText(hWnd, header);
-		break;
+		return 1;
 	}
 
 	case WM_LBUTTONDOWN:
 		pattern[TOTALSTRINGS - currentstring - 1][currentfret] ^= 1;
 		UpdateWindow(hWnd, &cr);
-		break;
+		return 1;
 
 	case WM_COMMAND:
-		wmId    = LOWORD(wParam);
-		wmEvent = HIWORD(wParam);
-		switch (wmId)
+		switch (LOWORD(wParam))
 		{
 		case ID_FILE_NEWPATTERN:
 		{
 			InitPattern();
 			UpdateWindow(hWnd, &cr);
-			break;
+			return 1;
 		}
 		case ID_FILE_LOADPATTERN:
 		{
@@ -335,7 +281,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				in.close();
 			}
 			UpdateWindow(hWnd, &cr);
-			break;
+			return 1;
 		}
 
 		case ID_FILE_SAVEAS:
@@ -371,28 +317,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				out.close();
 			}
-			break;
+			return 1;
 		}
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-			break;
+			return 1;
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
+			return 1;
 		}
-		break;
+		return 1;
 
-	case WM_DESTROY:
+	case WM_CLOSE:
 		DeleteObject(hBitmap);
 		DeleteObject(hFont);
 		hFont = NULL;
 		PostQuitMessage(0);
-		break;
-
-	default:
-		return DefWindowProc(hWnd, message, wParam, lParam);
+		return 1;
 	}
 	return 0;
 }
@@ -417,4 +358,43 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	return (INT_PTR)FALSE;
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
+{
+	HWND hDialog = 0;
+	MSG msg;
+	int status;
+	//HACCEL hAccelTable;
+	hInst = hInstance;
+
+	// initialize global strings
+	//LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	//LoadString(hInstance, IDC_FRETBOARDF, szWindowClass, MAX_LOADSTRING);
+	//MyRegisterClass(hInstance);
+	hDialog = CreateDialog(hInstance, MAKEINTRESOURCE(DLG_MAIN), 0, DialogProc);
+	if (!hDialog)
+    {
+        return 1;
+    }
+
+	// perform application initialization:
+	//if (!InitInstance (hInstance, nCmdShow))
+	//{
+	//	return FALSE;
+	//}
+
+	// main message loop:
+	while ((status = GetMessage(&msg, 0, 0, 0)) != 0)
+	{
+		if (status == -1)
+            return -1;
+        if (!IsDialogMessage(hDialog, &msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+	}
+
+	return (int) msg.wParam;
 }
