@@ -18,6 +18,8 @@ using namespace std;
 HINSTANCE hInst;
 HBITMAP hBitmap = NULL;
 HFONT hFont = NULL;
+HWND SpinControlHWNDs[TOTALSTRINGS];
+HWND EditControlHWNDs[TOTALSTRINGS];
 
 int ScaleLength = 0;
 int BGwidth = 0;
@@ -39,7 +41,6 @@ void DebugPrintPattern()
 		cout << tuning[i] << " ";
 		for (int j=0; j<TOTALFRETS; j++)
 		{
-		//	pattern[i][j] = 1; // for debug
 			cout << (pattern[i][j] ? "+" : "-");
 		}
 		cout << "\n";
@@ -56,13 +57,34 @@ void UpdateWindow(HWND hWnd, RECT *cr)
 	InvalidateRect(hWnd, cr, 0);
 }
 
+void UpdateControlPositions(HWND hWnd)
+{
+	RECT cr, sr, er;
+	int y;
+	float strheight;
+	GetClientRect(hWnd, &cr);
+	for (int i = 0; i < TOTALSTRINGS; i++)
+	{
+		GetWindowRect(SpinControlHWNDs[i], &sr);
+		GetWindowRect(EditControlHWNDs[i], &er);
+		POINT sp = { sr.left, sr.top };
+		POINT ep = { er.left, er.top };
+		ScreenToClient(hWnd, &sp);
+		ScreenToClient(hWnd, &ep);
+		strheight = (float)cr.bottom / TOTALSTRINGS;
+		y = strheight * float(TOTALSTRINGS - 1 - i) + (float)strheight / 2 - (sr.bottom - sr.top) / 2;
+		SetWindowPos(SpinControlHWNDs[i], 0, sp.x, y - 1, sr.right - sr.left, sr.bottom - sr.top, 0);
+		SetWindowPos(EditControlHWNDs[i], 0, ep.x, y    , er.right - er.left, er.bottom - er.top, 0);
+	}
+}
+
 void InitPattern()
 {
 	for (int i=TOTALSTRINGS-1; i>=0; i--)
 	{
 		for (int j=0; j<TOTALFRETS; j++)
 		{
-			pattern[i][j] = true;
+			pattern[i][j] = false;
 		}
 	}
 	DebugPrintPattern();
@@ -95,12 +117,17 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
-		GetClientRect(hWnd, &cr);
+		for (int i = 0; i < TOTALSTRINGS; i++)
+		{
+			SpinControlHWNDs[i] = GetDlgItem(hWnd, IDC_SPIN1 + i);
+			EditControlHWNDs[i] = GetDlgItem(hWnd, IDC_EDIT1 + i);
+		}
     	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 #ifdef _DEBUG
 		AllocConsole();
 #endif
 		InitPattern();
+		UpdateControlPositions(hWnd);
 		return 1;
 
 	case WM_PAINT:
@@ -197,6 +224,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 1;
 
 	case WM_SIZE:
+		UpdateControlPositions(hWnd);
 		UpdateWindow(hWnd, &cr);
 		return 1;
 
