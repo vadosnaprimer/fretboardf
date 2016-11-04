@@ -13,7 +13,8 @@
 // Windows Header Files:
 #include <windows.h>
 #include <commdlg.h>
-#include "shlwapi.h"
+#include <commctrl.h>
+#include <shlwapi.h>
 
 // C RunTime Header Files
 #include <string>

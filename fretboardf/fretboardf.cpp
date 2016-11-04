@@ -29,13 +29,15 @@ int CurrentFret = 0;
 int ClientOffset = 46;
 bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
 string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
-string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+const string defaulttuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
+const string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 string lastnote = "";
 
 void DebugPrintPattern()
 {
 #ifdef _DEBUG
-	freopen("CONOUT$", "w", stdout);
+	system("cls");
+	freopen("conout$", "w", stdout);
 	for (int i=TOTALSTRINGS-1; i>=0; i--)
 	{
 		cout << tuning[i] << " ";
@@ -121,6 +123,8 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
 			SpinControlHWNDs[i] = GetDlgItem(hWnd, IDC_SPIN1 + i);
 			EditControlHWNDs[i] = GetDlgItem(hWnd, IDC_EDIT1 + i);
+			SendDlgItemMessage(hWnd, IDC_EDIT1 + i, EM_LIMITTEXT, 2, 0);
+			SetDlgItemText    (hWnd, IDC_EDIT1 + i, tuning[i].c_str());
 		}
     	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 #ifdef _DEBUG
@@ -128,7 +132,31 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 #endif
 		InitPattern();
 		UpdateControlPositions(hWnd);
-		return 1;
+		SetFocus(SpinControlHWNDs[0]); // hack, to prevent autoselectiin of edit control text
+		return 0;
+
+	case WM_NOTIFY:
+	{
+		LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+		if (lpnmud->hdr.code == UDN_DELTAPOS)
+		{
+			int offset;
+			int str = lpnmud->hdr.idFrom - IDC_SPIN1;
+			for (offset = 0; offset < TOTALNOTES; offset++)
+			{
+				if (notes[offset] == tuning[str])
+					break;
+			}
+			if (offset == 0)
+				offset = TOTALNOTES;
+			if (lpnmud->iDelta > 0)
+				tuning[str] = notes[(offset + 1) % TOTALNOTES];
+			else
+				tuning[str] = notes[offset - 1];
+			SetDlgItemText(hWnd, IDC_EDIT1 + str, tuning[str].c_str());
+		}
+	}
+
 
 	case WM_PAINT:
 	{
@@ -155,9 +183,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SetTextColor(hdc, 0x00ffffff);
 		ScaleLength = (cr.right - 12) * 1.32f;
 
-		for (int str=0; str<TOTALSTRINGS; str++)
+		for (int str = 0; str < TOTALSTRINGS; str++)
 		{
-			for (int fret=0; fret<TOTALFRETS; fret++)
+			for (int fret = 0; fret < TOTALFRETS; fret++)
 			{
 				if (pattern[str][fret])
 				{
@@ -206,7 +234,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CurrentString = TOTALSTRINGS - 1;
 		string root = tuning[CurrentString];
 		int offset;
-		for (offset=0; offset<TOTALNOTES; offset++)
+		for (offset = 0; offset < TOTALNOTES; offset++)
 		{
 			if (notes[offset] == root)
 				break;
@@ -261,10 +289,10 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				ifstream in(filename);
 				string line;
-				for (int i=TOTALSTRINGS-1; i>=0; i--)
+				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
 				{
 					in >> line;
-					for (int j=0; j<TOTALFRETS; j++)
+					for (int j = 0; j < TOTALFRETS; j++)
 					{
 						pattern[i][j] = (line[j] == '+');
 					}
@@ -299,9 +327,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if (GetSaveFileName(&ofn))
 			{
 				ofstream out(filename);
-				for (int i=TOTALSTRINGS-1; i>=0; i--)
+				for (int i = TOTALSTRINGS-1; i >= 0; i--)
 				{
-					for (int j=0; j<TOTALFRETS; j++)
+					for (int j = 0; j < TOTALFRETS; j++)
 					{
 						out << (pattern[i][j] ? "+" : "-");
 					}
@@ -311,9 +339,19 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			return 1;
 		}
+
+		case ID_FILE_LOADDEFAULTTUNING:
+			for (int i = 0; i < TOTALSTRINGS; i++)
+			{
+				tuning[i] = defaulttuning[i];
+				SetDlgItemText(hWnd, IDC_EDIT1 + i, tuning[i].c_str());
+			}
+			return 1;
+
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			return 1;
+
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
 			return 1;
