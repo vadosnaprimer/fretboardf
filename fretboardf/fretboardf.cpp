@@ -62,7 +62,7 @@ void InitPattern()
 	{
 		for (int j=0; j<TOTALFRETS; j++)
 		{
-			pattern[i][j] = false;
+			pattern[i][j] = true;
 		}
 	}
 	DebugPrintPattern();
@@ -122,11 +122,11 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		cr.right -= ClientOffset;
 		
 		SetStretchBltMode(hdc, HALFTONE);
-        StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 0, BGwidth, BGheight, SRCCOPY);		
+        StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 5, BGwidth, BGheight-10, SRCCOPY);		
 		SelectObject(hdc, hFont);
 		SetBkColor  (hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
-		ScaleLength = cr.right * 1.308f;
+		ScaleLength = (cr.right - 12) * 1.32f;
 
 		for (int str=0; str<TOTALSTRINGS; str++)
 		{
@@ -150,9 +150,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					if (note.length() == 1)
 						x += 3;
 					if (fret == 0)
-						x = ClientOffset;
+						x = ClientOffset + 1;
 					else
-						x += 2;
+						x += 4;
 					MoveToEx(hdc, 0, 0, NULL);
 					TextOut(hdc, x, y, note.c_str(), note.length());
 				}
@@ -169,7 +169,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		char header[100];
 		POINT Mouse;
 		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
-		Mouse.x -= 56;
+		Mouse.x -= 58;
 		GetClientRect(hWnd, &cr);
 		CurrentString = Mouse.y / (cr.bottom / 6);
 		CurrentFret   = POSTOFRET(Mouse.x) + 1;
