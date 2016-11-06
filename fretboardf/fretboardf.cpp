@@ -3,7 +3,7 @@
 // http://www.liutaiomottola.com/formulae/fret.htm
 
 #include "stdafx.h"
-#include "fretboardf.h"
+#include "resource.h"
 
 using namespace std;
 
@@ -14,7 +14,6 @@ using namespace std;
 #define POSTOFRET(x)   static_cast<int>((TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f)))
 #define FRETTOPOS(x)   static_cast<int>(ScaleLength - ((ScaleLength) / pow((float)2, (float)(x) / TOTALNOTES)))
 
-// global variables:
 HINSTANCE hInst;
 HBITMAP hBitmap = NULL;
 HFONT hFont = NULL;
@@ -88,7 +87,7 @@ void UpdateControlPositions(HWND hWnd)
 		ScreenToClient(hWnd, &ep);
 		strheight = (float)cr.bottom / TOTALSTRINGS;
 		y = static_cast<int>(strheight * float(TOTALSTRINGS - 1 - i) + (float)strheight / 2 - (sr.bottom - sr.top) / 2);
-		SetWindowPos(SpinControlHWNDs[i], 0, sp.x, y - 1, sr.right - sr.left, sr.bottom - sr.top, 0);
+		SetWindowPos(SpinControlHWNDs[i], 0, sp.x, y + 1, sr.right - sr.left, sr.bottom - sr.top, 0);
 		SetWindowPos(EditControlHWNDs[i], 0, ep.x, y    , er.right - er.left, er.bottom - er.top, 0);
 	}
 }
@@ -205,7 +204,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		WindowX = GetPrivateProfileInt("Position", "x", 200, configfile);
 		WindowY = GetPrivateProfileInt("Position", "y", 200, configfile);
 		WindowW = GetPrivateProfileInt("Position", "w", 960, configfile);
-		WindowH = GetPrivateProfileInt("Position", "h", 190,  configfile);
+		WindowH = GetPrivateProfileInt("Position", "h", 174, configfile);
 		MoveWindow(hWnd, WindowX, WindowY, WindowW, WindowH, 0);
 
 		UpdateControlPositions(hWnd);
@@ -257,7 +256,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SetStretchBltMode(hdc, HALFTONE);
         StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 5, BGwidth, BGheight-10, SRCCOPY);		
 		SelectObject(hdc, hFont);
-		SetBkColor  (hdc, 0x000000ff);
+		SetBkColor(hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
 		ScaleLength = static_cast<int>((cr.right - 12) * 1.32f);
 
