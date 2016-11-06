@@ -16,20 +16,21 @@ using namespace std;
 
 HINSTANCE hInst;
 HBITMAP hBitmap = NULL;
-HFONT hFont = NULL;
+HFONT   hFont   = NULL;
+HICON   hIcon   = NULL;
 HWND SpinControlHWNDs[TOTALSTRINGS];
 HWND EditControlHWNDs[TOTALSTRINGS];
 
-int WindowX = 0;
-int WindowY = 0;
-int WindowW = 0;
-int WindowH = 0;
-int ScaleLength = 0;
-int BGwidth = 0;
-int BGheight = 0;
+int WindowX       = 0;
+int WindowY       = 0;
+int WindowW       = 0;
+int WindowH       = 0;
+int ScaleLength   = 0;
+int BGwidth       = 0;
+int BGheight      = 0;
 int CurrentString = 0;
-int CurrentFret = 0;
-int ClientOffset = 46;
+int CurrentFret   = 0;
+int ClientOffset  = 46;
 bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
 string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 const string defaulttuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
@@ -154,7 +155,9 @@ void Exit()
 
 	DeleteObject(hBitmap);
 	DeleteObject(hFont);
-	hFont = NULL;
+	hBitmap = NULL;
+	hFont   = NULL;
+	hIcon   = NULL;
 	PostQuitMessage(0);
 }
 
@@ -199,6 +202,8 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			SetDlgItemText    (hWnd, IDC_EDIT1 + i, tuning[i].c_str());
 		}
     	hBitmap = (HBITMAP)LoadImage(hInst, MAKEINTRESOURCE(IDB_BITMAP1), IMAGE_BITMAP, 0, 0, LR_COPYFROMRESOURCE);
+		hIcon   = (HICON)  LoadImage(hInst, MAKEINTRESOURCE(IDI_SMALL),   IMAGE_ICON,   0, 0, LR_COPYFROMRESOURCE);
+		SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
 		InitPattern();
 
 		WindowX = GetPrivateProfileInt("Position", "x", 200, configfile);
@@ -505,5 +510,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLin
         }
 	}
 
-	return (int) msg.wParam;
+	return (int)msg.wParam;
 }
