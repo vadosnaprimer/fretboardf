@@ -33,21 +33,28 @@ const string defaulttuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 const string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 string lastnote = "";
 
+enum OFNREASON {
+	PATTERNLOAD = 0,
+	PATTERNSAVE,
+	TUNINGLOAD,
+	TUNINGSAVE
+};
+
 void DebugPrintPattern()
 {
 #ifdef _DEBUG
 	system("cls");
 	freopen("conout$", "w", stdout);
+	cout.fill(' ');
 	for (int i=TOTALSTRINGS-1; i>=0; i--)
 	{
-		cout << tuning[i] << " ";
+		cout << setw(3) << left << tuning[i];
 		for (int j=0; j<TOTALFRETS; j++)
 		{
 			cout << (pattern[i][j] ? "+" : "-");
 		}
 		cout << "\n";
 	}
-	cout << "\n";
 #endif
 }
 
@@ -92,6 +99,43 @@ void InitPattern()
 	DebugPrintPattern();
 }
 
+void PrepareFile(char *filename, OPENFILENAME *ofn, int size, int reason)
+{
+	ZeroMemory(filename, MAX_PATH);
+	ZeroMemory(ofn, size);
+	GetModuleFileName(NULL, filename, MAX_PATH);
+	PathRemoveFileSpec(filename);
+
+	switch (reason)
+	{
+	case PATTERNLOAD:
+		strcat(filename, "\\pattern");
+		ofn->lpstrTitle = "Load Pattern From...";
+		break;
+	case PATTERNSAVE:
+		strcat(filename, "\\pattern");
+		ofn->lpstrTitle = "Save Pattern As...";
+		break;
+	case TUNINGLOAD:
+		strcat(filename, "\\tuning");
+		ofn->lpstrTitle = "Load Tuning From...";
+		break;
+	case TUNINGSAVE:
+		strcat(filename, "\\tuning");
+		ofn->lpstrTitle = "Save Tuning As...";
+		break;
+	}
+
+	ofn->lStructSize     = size;
+	ofn->hwndOwner       = NULL;
+	ofn->lpstrInitialDir = filename;
+	ofn->lpstrFile       = filename;
+	ofn->lpstrFilter     = "Text Files\0*.txt\0Any File\0*.*\0";
+	ofn->nMaxFile        = MAX_PATH;
+	ofn->Flags           = OFN_FILEMUSTEXIST;
+	ofn->lpstrDefExt     = (LPCSTR)"txt";
+}
+
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	HWND hWndEdit = GetDlgItem(hDlg, IDC_EDIT1);
@@ -119,6 +163,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+#ifdef _DEBUG
+		AllocConsole();
+#endif
 		for (int i = 0; i < TOTALSTRINGS; i++)
 		{
 			SpinControlHWNDs[i] = GetDlgItem(hWnd, IDC_SPIN1 + i);
@@ -127,13 +174,10 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			SetDlgItemText    (hWnd, IDC_EDIT1 + i, tuning[i].c_str());
 		}
     	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-#ifdef _DEBUG
-		AllocConsole();
-#endif
 		InitPattern();
 		UpdateControlPositions(hWnd);
 		SetFocus(SpinControlHWNDs[0]); // hack, to prevent autoselectiin of edit control text
-		return 0;
+		return 0; // same reason
 
 	case WM_NOTIFY:
 	{
@@ -154,7 +198,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			else
 				tuning[str] = notes[offset - 1];
 			SetDlgItemText(hWnd, IDC_EDIT1 + str, tuning[str].c_str());
+			UpdateWindow(hWnd, &cr);
 		}
+    	return 1;
 	}
 
 
@@ -232,7 +278,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			CurrentFret = TOTALFRETS - 1;
 		if (CurrentString > TOTALSTRINGS - 1)
 			CurrentString = TOTALSTRINGS - 1;
-		string root = tuning[CurrentString];
+		string root = tuning[TOTALSTRINGS - CurrentString - 1];
 		int offset;
 		for (offset = 0; offset < TOTALNOTES; offset++)
 		{
@@ -240,7 +286,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 		}
 		string note = notes[(offset + CurrentFret) % TOTALNOTES];
-		sprintf(header, "%s    %d : %d", note.c_str(), CurrentString + 1, CurrentFret);
+		if (note.length() == 1)
+			note += "  ";
+		sprintf(header, "FretboardF :: %s : %d : %d", note.c_str(), CurrentString + 1, CurrentFret);
 		if (note != lastnote)
 			SetWindowText(hWnd, header);
 		return 1;
@@ -265,25 +313,12 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			UpdateWindow(hWnd, &cr);
 			return 1;
 		}
+
 		case ID_FILE_LOADPATTERN:
 		{
 			char filename[MAX_PATH];
 			OPENFILENAME ofn;
-			ZeroMemory(&filename, sizeof(filename));
-			ZeroMemory(&ofn,      sizeof(ofn));
-			GetModuleFileName(NULL, filename, MAX_PATH);
-			PathRemoveFileSpec(filename);
-
-			ofn.lStructSize     = sizeof(ofn);
-			ofn.hwndOwner       = NULL;
-			ofn.lpstrInitialDir = filename;
-			strcat(filename,    "\\pattern");
-			ofn.lpstrFile       = filename;
-			ofn.lpstrFilter     = "Text Files\0*.txt\0Any File\0*.*\0";
-			ofn.nMaxFile        = MAX_PATH;
-			ofn.lpstrTitle      = "Select a File";
-			ofn.Flags           = OFN_FILEMUSTEXIST;
-			ofn.lpstrDefExt     = (LPCSTR)"txt";
+			PrepareFile(filename, &ofn, sizeof(ofn), PATTERNLOAD);
 
 			if (GetOpenFileName(&ofn))
 			{
@@ -304,30 +339,16 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return 1;
 		}
 
-		case ID_FILE_SAVEAS:
+		case ID_FILE_SAVEPATTERNAS:
 		{
 			char filename[MAX_PATH];
 			OPENFILENAME ofn;
-			ZeroMemory(&filename, sizeof(filename));
-			ZeroMemory(&ofn,      sizeof(ofn));
-			GetModuleFileName(NULL, filename, MAX_PATH);
-			PathRemoveFileSpec(filename);
+			PrepareFile(filename, &ofn, sizeof(ofn), PATTERNSAVE);
 
-			ofn.lStructSize     = sizeof(ofn);
-			ofn.hwndOwner       = NULL;
-			ofn.lpstrInitialDir = filename;
-			strcat(filename,    "\\pattern");
-			ofn.lpstrFile       = filename;
-			ofn.lpstrFilter     = "Text Files\0*.txt\0Any File\0*.*\0";
-			ofn.nMaxFile        = MAX_PATH;
-			ofn.lpstrTitle      = "Select a File";
-			ofn.Flags           = OFN_FILEMUSTEXIST;
-			ofn.lpstrDefExt     = (LPCSTR)"txt";
-  
 			if (GetSaveFileName(&ofn))
 			{
 				ofstream out(filename);
-				for (int i = TOTALSTRINGS-1; i >= 0; i--)
+				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
 				{
 					for (int j = 0; j < TOTALFRETS; j++)
 					{
@@ -346,7 +367,49 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				tuning[i] = defaulttuning[i];
 				SetDlgItemText(hWnd, IDC_EDIT1 + i, tuning[i].c_str());
 			}
+			UpdateWindow(hWnd, &cr);
 			return 1;
+
+		case ID_FILE_LOADTUNING:
+		{
+			char filename[MAX_PATH];
+			OPENFILENAME ofn;
+			PrepareFile(filename, &ofn, sizeof(ofn), TUNINGLOAD);
+			
+			if (GetOpenFileName(&ofn))
+			{
+				ifstream in(filename);
+				string line;
+				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				{
+					in >> line;
+					tuning[i] = line;
+					SetDlgItemText(hWnd, IDC_EDIT1 + i, tuning[i].c_str());
+				}
+				in.close();
+			}
+			UpdateWindow(hWnd, &cr);
+			return 1;
+		}
+
+		case ID_FILE_SAVETUNINGAS:
+		{
+			char filename[MAX_PATH];
+			OPENFILENAME ofn;
+			PrepareFile(filename, &ofn, sizeof(ofn), TUNINGSAVE);
+
+			if (GetSaveFileName(&ofn))
+			{
+				ofstream out(filename);
+				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				{
+					out << tuning[i];
+					out << "\n";
+				}
+				out.close();
+			}
+			return 1;
+		}
 
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
