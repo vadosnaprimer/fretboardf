@@ -173,7 +173,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hWnd, IDC_EDIT1 + i, EM_LIMITTEXT, 2, 0);
 			SetDlgItemText    (hWnd, IDC_EDIT1 + i, tuning[i].c_str());
 		}
-    	hBitmap = (HBITMAP)LoadImage(hInst, "fretboardbg.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    	hBitmap = (HBITMAP)LoadImage(hInst, MAKEINTRESOURCE(IDB_BITMAP1), IMAGE_BITMAP, 0, 0, LR_COPYFROMRESOURCE);
 		InitPattern();
 		UpdateControlPositions(hWnd);
 		SetFocus(SpinControlHWNDs[0]); // hack, to prevent autoselectiin of edit control text

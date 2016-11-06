@@ -21,6 +21,9 @@
     <None Include="fretboardf.ico">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="fretboardbg.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
