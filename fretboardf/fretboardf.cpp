@@ -21,6 +21,10 @@ HFONT hFont = NULL;
 HWND SpinControlHWNDs[TOTALSTRINGS];
 HWND EditControlHWNDs[TOTALSTRINGS];
 
+int WindowX = 0;
+int WindowY = 0;
+int WindowW = 0;
+int WindowH = 0;
 int ScaleLength = 0;
 int BGwidth = 0;
 int BGheight = 0;
@@ -31,6 +35,8 @@ bool pattern[TOTALSTRINGS][TOTALFRETS] = {};
 string tuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 const string defaulttuning[TOTALSTRINGS] = { "E", "A", "D", "G", "B", "E" };
 const string notes[TOTALNOTES] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+char configfile[1024];
+char configbuf[1024];
 string lastnote = "";
 
 enum OFNREASON {
@@ -136,6 +142,23 @@ void PrepareFile(char *filename, OPENFILENAME *ofn, int size, int reason)
 	ofn->lpstrDefExt     = (LPCSTR)"txt";
 }
 
+void Exit()
+{
+	sprintf(configbuf, "%d", WindowX);
+	WritePrivateProfileString("Position", "x", configbuf, configfile);
+	sprintf(configbuf, "%d", WindowY);
+	WritePrivateProfileString("Position", "y", configbuf, configfile);
+	sprintf(configbuf, "%d", WindowW);
+	WritePrivateProfileString("Position", "w", configbuf, configfile);
+	sprintf(configbuf, "%d", WindowH);
+	WritePrivateProfileString("Position", "h", configbuf, configfile);
+
+	DeleteObject(hBitmap);
+	DeleteObject(hFont);
+	hFont = NULL;
+	PostQuitMessage(0);
+}
+
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	HWND hWndEdit = GetDlgItem(hDlg, IDC_EDIT1);
@@ -158,11 +181,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	RECT cr;
+	RECT cr, r;
 
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		GetModuleFileName(NULL, configfile, MAX_PATH);
+		PathRemoveFileSpec(configfile);
+		strcat(configfile, "\\config.txt");
 #ifdef _DEBUG
 		AllocConsole();
 #endif
@@ -175,6 +201,13 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
     	hBitmap = (HBITMAP)LoadImage(hInst, MAKEINTRESOURCE(IDB_BITMAP1), IMAGE_BITMAP, 0, 0, LR_COPYFROMRESOURCE);
 		InitPattern();
+
+		WindowX = GetPrivateProfileInt("Position", "x", 200, configfile);
+		WindowY = GetPrivateProfileInt("Position", "y", 200, configfile);
+		WindowW = GetPrivateProfileInt("Position", "w", 960, configfile);
+		WindowH = GetPrivateProfileInt("Position", "h", 190,  configfile);
+		MoveWindow(hWnd, WindowX, WindowY, WindowW, WindowH, 0);
+
 		UpdateControlPositions(hWnd);
 		SetFocus(SpinControlHWNDs[0]); // hack, to prevent autoselectiin of edit control text
 		return 0; // same reason
@@ -202,8 +235,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
     	return 1;
 	}
-
-
+	
 	case WM_PAINT:
 	{
     	PAINTSTRUCT 	ps;
@@ -300,8 +332,20 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 1;
 
 	case WM_SIZE:
+		if (!IsIconic(hWnd))
+		{
+			GetWindowRect(hWnd, &r);
+			WindowW = r.right - r.left;
+			WindowH = r.bottom - r.top;
+		}
 		UpdateControlPositions(hWnd);
 		UpdateWindow(hWnd, &cr);
+		return 1;
+
+	case WM_MOVE:
+		GetWindowRect(hWnd, &r);
+		WindowX = r.left;
+		WindowY = r.top;
 		return 1;
 
 	case WM_COMMAND:
@@ -417,15 +461,13 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
+			Exit();
 			return 1;
 		}
 		return 1;
 
 	case WM_CLOSE:
-		DeleteObject(hBitmap);
-		DeleteObject(hFont);
-		hFont = NULL;
-		PostQuitMessage(0);
+		Exit();
 		return 1;
 	}
 	return 0;
