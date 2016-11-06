@@ -11,8 +11,8 @@ using namespace std;
 #define TOTALSTRINGS   6
 #define TOTALFRETS     25
 #define TOTALNOTES     12
-#define POSTOFRET(x)   (TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f))
-#define FRETTOPOS(x)   ScaleLength - ((ScaleLength) / pow((float)2, (float)(x) / TOTALNOTES))
+#define POSTOFRET(x)   static_cast<int>((TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f)))
+#define FRETTOPOS(x)   static_cast<int>(ScaleLength - ((ScaleLength) / pow((float)2, (float)(x) / TOTALNOTES)))
 
 // global variables:
 HINSTANCE hInst;
@@ -81,7 +81,7 @@ void UpdateControlPositions(HWND hWnd)
 		ScreenToClient(hWnd, &sp);
 		ScreenToClient(hWnd, &ep);
 		strheight = (float)cr.bottom / TOTALSTRINGS;
-		y = strheight * float(TOTALSTRINGS - 1 - i) + (float)strheight / 2 - (sr.bottom - sr.top) / 2;
+		y = static_cast<int>(strheight * float(TOTALSTRINGS - 1 - i) + (float)strheight / 2 - (sr.bottom - sr.top) / 2);
 		SetWindowPos(SpinControlHWNDs[i], 0, sp.x, y - 1, sr.right - sr.left, sr.bottom - sr.top, 0);
 		SetWindowPos(EditControlHWNDs[i], 0, ep.x, y    , er.right - er.left, er.bottom - er.top, 0);
 	}
@@ -227,7 +227,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SelectObject(hdc, hFont);
 		SetBkColor  (hdc, 0x000000ff);
 		SetTextColor(hdc, 0x00ffffff);
-		ScaleLength = (cr.right - 12) * 1.32f;
+		ScaleLength = static_cast<int>((cr.right - 12) * 1.32f);
 
 		for (int str = 0; str < TOTALSTRINGS; str++)
 		{
@@ -245,9 +245,9 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					string note = notes[(offset + fret) % TOTALNOTES];
 					int cur = FRETTOPOS(fret);
 					int prev = fret == 0 ? 0 : FRETTOPOS(fret - 1);
-					int x = float(prev + (cur - prev) / 2) + ClientOffset;
+					int x = static_cast<int>(float(prev + (cur - prev) / 2) + ClientOffset);
 					float strheight = (float)cr.bottom / TOTALSTRINGS;
-					int y = strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7;
+					int y = static_cast<int>(strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7);
 					if (note.length() == 1)
 						x += 3;
 					if (fret == 0)
