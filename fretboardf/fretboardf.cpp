@@ -11,7 +11,7 @@ using namespace std;
 #define TOTALSTRINGS   6
 #define TOTALFRETS     25
 #define TOTALNOTES     12
-#define POSTOFRET(x)   static_cast<int>((TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f)))
+#define POSTOFRET(x)   ((TOTALNOTES * log((float)ScaleLength / (ScaleLength - x))) / (log(2.0f)))
 #define FRETTOPOS(x)   static_cast<int>(ScaleLength - ((ScaleLength) / pow((float)2, (float)(x) / TOTALNOTES)))
 
 HINSTANCE hInst;
@@ -304,7 +304,7 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		Mouse.x -= 58;
 		GetClientRect(hWnd, &cr);
 		CurrentString = Mouse.y / (cr.bottom / 6);
-		CurrentFret   = POSTOFRET(Mouse.x) + 1;
+		CurrentFret   = static_cast<int>(POSTOFRET(Mouse.x) + 1);
 		if (CurrentFret > TOTALFRETS - 1)
 			CurrentFret = TOTALFRETS - 1;
 		if (CurrentString > TOTALSTRINGS - 1)
