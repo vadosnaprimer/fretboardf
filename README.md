@@ -1,5 +1,7 @@
 # FretboardF
 
+![Snapshot](http://i.imgur.com/hOHAIql.png)
+
 A tool for creating melody or scale structures and observing them on the standard fretboard layout.
 
 * Set and clear notes with left-click
@@ -7,6 +9,6 @@ A tool for creating melody or scale structures and observing them on the standar
 * Adjust tuning for individual strings
 * Save and load tunings
 
-Copyright (c) 2016 feos
+https://github.com/vadosnaprimer/fretboardf
 
-![Snapshot](http://i.imgur.com/hOHAIql.png)
+Copyright (c) 2016 feos
