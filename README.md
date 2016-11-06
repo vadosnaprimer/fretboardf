@@ -1,1 +1,12 @@
-# fretboardf
+# FretboardF
+
+A tool for creating melody or scale structures and observing them on the standard fretboard layout.
+
+* Set and clear notes with left-click
+* Save and load note patterns
+* Adjust tuning for individual strings
+* Save and load tunings
+
+Copyright (c) 2016 feos
+
+![Snapshot](http://i.imgur.com/hOHAIql.png)
