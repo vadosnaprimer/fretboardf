@@ -217,142 +217,142 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 0; // same reason
 
 	case WM_NOTIFY:
-	{
-		LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
-		if (lpnmud->hdr.code == UDN_DELTAPOS)
 		{
-			int str = lpnmud->hdr.idFrom - IDC_SPIN1;
-			if (GetKeyState(VK_SHIFT) < 0)
+			LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+			if (lpnmud->hdr.code == UDN_DELTAPOS)
 			{
-				if (lpnmud->iDelta > 0)
+				int str = lpnmud->hdr.idFrom - IDC_SPIN1;
+				if (GetKeyState(VK_SHIFT) < 0)
 				{
-					bool temp = pattern[str][0];
-					for (int i = 0; i < TOTALFRETS - 1; i++)
+					if (lpnmud->iDelta > 0)
 					{
-						pattern[str][i] = pattern[str][i + 1];
+						bool temp = pattern[str][0];
+						for (int i = 0; i < TOTALFRETS - 1; i++)
+						{
+							pattern[str][i] = pattern[str][i + 1];
+						}
+						pattern[str][TOTALFRETS - 1] = temp;
 					}
-					pattern[str][TOTALFRETS - 1] = temp;
+					else
+					{
+						bool temp = pattern[str][TOTALFRETS - 1];
+						for(int i = TOTALFRETS - 1; i > 0; i--)
+						{
+							pattern[str][i] = pattern[str][i - 1];
+						}
+						pattern[str][0] = temp;
+					}
 				}
 				else
 				{
-					bool temp = pattern[str][TOTALFRETS - 1];
-					for(int i = TOTALFRETS - 1; i > 0; i--)
-					{
-						pattern[str][i] = pattern[str][i - 1];
-					}
-					pattern[str][0] = temp;
-				}
-			}
-			else
-			{
-				int offset;
-				for (offset = 0; offset < TOTALNOTES; offset++)
-				{
-					if (notes[offset] == tuning[str])
-						break;
-				}
-				if (offset == 0)
-					offset = TOTALNOTES;
-				if (lpnmud->iDelta > 0)
-					tuning[str] = notes[(offset + 1) % TOTALNOTES];
-				else
-					tuning[str] = notes[offset - 1];
-			}
-			SetDlgItemText(hWnd, IDC_EDIT1 + str, tuning[str].c_str());
-			UpdateWindow(hWnd, &cr);
-		}
-    	return 1;
-	}
-	
-	case WM_PAINT:
-	{
-    	PAINTSTRUCT 	ps;
-    	BITMAP 			bitmap;
-		HDC 			hdc;
-    	HDC 			hdcMem;
-        HGDIOBJ 		oldBitmap;
-
-        GetObject(hBitmap, sizeof(bitmap), &bitmap);
-		GetClientRect(hWnd, &cr);
-    	hdc       = BeginPaint(hWnd, &ps);
-    	hdcMem    = CreateCompatibleDC(hdc);
-        oldBitmap = SelectObject(hdcMem, hBitmap);
-		BGwidth   = bitmap.bmWidth;
-		BGheight  = bitmap.bmHeight;
-		cr.left  += ClientOffset;
-		cr.right -= ClientOffset;
-		
-		SetStretchBltMode(hdc, HALFTONE);
-        StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 5, BGwidth, BGheight-10, SRCCOPY);		
-		SelectObject(hdc, hFont);
-		SetBkColor(hdc, 0x000000ff);
-		SetTextColor(hdc, 0x00ffffff);
-		ScaleLength = static_cast<int>((cr.right - 12) * 1.32f);
-
-		for (int str = 0; str < TOTALSTRINGS; str++)
-		{
-			for (int fret = 0; fret < TOTALFRETS; fret++)
-			{
-				if (pattern[str][fret])
-				{
-					string root = tuning[str];
 					int offset;
-					for (offset=0; offset<TOTALNOTES; offset++)
+					for (offset = 0; offset < TOTALNOTES; offset++)
 					{
-						if (notes[offset] == root)
+						if (notes[offset] == tuning[str])
 							break;
 					}
-					string note = notes[(offset + fret) % TOTALNOTES];
-					int cur = FRETTOPOS(fret);
-					int prev = fret == 0 ? 0 : FRETTOPOS(fret - 1);
-					int x = static_cast<int>(float(prev + (cur - prev) / 2) + ClientOffset);
-					float strheight = (float)cr.bottom / TOTALSTRINGS;
-					int y = static_cast<int>(strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7);
-					if (note.length() == 1)
-						x += 3;
-					if (fret == 0)
-						x = ClientOffset + 1;
+					if (offset == 0)
+						offset = TOTALNOTES;
+					if (lpnmud->iDelta > 0)
+						tuning[str] = notes[(offset + 1) % TOTALNOTES];
 					else
-						x += 4;
-					MoveToEx(hdc, 0, 0, NULL);
-					TextOut(hdc, x, y, note.c_str(), note.length());
+						tuning[str] = notes[offset - 1];
 				}
+				SetDlgItemText(hWnd, IDC_EDIT1 + str, tuning[str].c_str());
+				UpdateWindow(hWnd, &cr);
 			}
 		}
-        SelectObject(hdcMem, oldBitmap);
-        DeleteDC(hdcMem);
-    	EndPaint(hWnd, &ps);
-    	return 1;
-	}
+		return 1;
+	
+	case WM_PAINT:
+		{
+			PAINTSTRUCT 	ps;
+			BITMAP 			bitmap;
+			HDC 			hdc;
+			HDC 			hdcMem;
+		    HGDIOBJ 		oldBitmap;
+
+		    GetObject(hBitmap, sizeof(bitmap), &bitmap);
+			GetClientRect(hWnd, &cr);
+			hdc       = BeginPaint(hWnd, &ps);
+			hdcMem    = CreateCompatibleDC(hdc);
+		    oldBitmap = SelectObject(hdcMem, hBitmap);
+			BGwidth   = bitmap.bmWidth;
+			BGheight  = bitmap.bmHeight;
+			cr.left  += ClientOffset;
+			cr.right -= ClientOffset;
+			
+			SetStretchBltMode(hdc, HALFTONE);
+		    StretchBlt(hdc, cr.left, cr.top, cr.right, cr.bottom, hdcMem, 0, 5, BGwidth, BGheight-10, SRCCOPY);		
+			SelectObject(hdc, hFont);
+			SetBkColor(hdc, 0x000000ff);
+			SetTextColor(hdc, 0x00ffffff);
+			ScaleLength = static_cast<int>((cr.right - 12) * 1.32f);
+
+			for (int str = 0; str < TOTALSTRINGS; str++)
+			{
+				for (int fret = 0; fret < TOTALFRETS; fret++)
+				{
+					if (pattern[str][fret])
+					{
+						string root = tuning[str];
+						int offset;
+						for (offset=0; offset<TOTALNOTES; offset++)
+						{
+							if (notes[offset] == root)
+								break;
+						}
+						string note = notes[(offset + fret) % TOTALNOTES];
+						int cur = FRETTOPOS(fret);
+						int prev = fret == 0 ? 0 : FRETTOPOS(fret - 1);
+						int x = static_cast<int>(float(prev + (cur - prev) / 2) + ClientOffset);
+						float strheight = (float)cr.bottom / TOTALSTRINGS;
+						int y = static_cast<int>(strheight * float(TOTALSTRINGS - 1 - str) + (float)strheight / 2 - 7);
+						if (note.length() == 1)
+							x += 3;
+						if (fret == 0)
+							x = ClientOffset + 1;
+						else
+							x += 4;
+						MoveToEx(hdc, 0, 0, NULL);
+						TextOut(hdc, x, y, note.c_str(), note.length());
+					}
+				}
+			}
+		    SelectObject(hdcMem, oldBitmap);
+		    DeleteDC(hdcMem);
+			EndPaint(hWnd, &ps);
+		}
+		return 1;
 
 	case WM_MOUSEMOVE:
-	{
-		char header[100];
-		POINT Mouse;
-		POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
-		Mouse.x -= 58;
-		GetClientRect(hWnd, &cr);
-		CurrentString = Mouse.y / (cr.bottom / 6);
-		CurrentFret   = static_cast<int>(POSTOFRET(Mouse.x) + 1);
-		if (CurrentFret > TOTALFRETS - 1)
-			CurrentFret = TOTALFRETS - 1;
-		if (CurrentString > TOTALSTRINGS - 1)
-			CurrentString = TOTALSTRINGS - 1;
-		string root = tuning[TOTALSTRINGS - CurrentString - 1];
-		int offset;
-		for (offset = 0; offset < TOTALNOTES; offset++)
 		{
-			if (notes[offset] == root)
-				break;
+			char header[100];
+			POINT Mouse;
+			POINTSTOPOINT(Mouse, MAKEPOINTS(lParam));
+			Mouse.x -= 58;
+			GetClientRect(hWnd, &cr);
+			CurrentString = Mouse.y / (cr.bottom / 6);
+			CurrentFret   = static_cast<int>(POSTOFRET(Mouse.x) + 1);
+			if (CurrentFret > TOTALFRETS - 1)
+				CurrentFret = TOTALFRETS - 1;
+			if (CurrentString > TOTALSTRINGS - 1)
+				CurrentString = TOTALSTRINGS - 1;
+			string root = tuning[TOTALSTRINGS - CurrentString - 1];
+			int offset;
+			for (offset = 0; offset < TOTALNOTES; offset++)
+			{
+				if (notes[offset] == root)
+					break;
+			}
+			string note = notes[(offset + CurrentFret) % TOTALNOTES];
+			if (note.length() == 1)
+				note += "  ";
+			sprintf(header, "FretboardF :: %s : %d : %d", note.c_str(), CurrentString + 1, CurrentFret);
+			if (note != lastnote)
+				SetWindowText(hWnd, header);
 		}
-		string note = notes[(offset + CurrentFret) % TOTALNOTES];
-		if (note.length() == 1)
-			note += "  ";
-		sprintf(header, "FretboardF :: %s : %d : %d", note.c_str(), CurrentString + 1, CurrentFret);
-		if (note != lastnote)
-			SetWindowText(hWnd, header);
 		return 1;
-	}
 
 	case WM_LBUTTONDOWN:
 		pattern[TOTALSTRINGS - CurrentString - 1][CurrentFret] ^= 1;
@@ -380,58 +380,58 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		switch (LOWORD(wParam))
 		{
 		case ID_FILE_NEWPATTERN:
-		{
-			InitPattern();
-			UpdateWindow(hWnd, &cr);
-			return 1;
-		}
+			{
+				InitPattern();
+				UpdateWindow(hWnd, &cr);
+				return 1;
+			}
 
 		case ID_FILE_LOADPATTERN:
-		{
-			char filename[MAX_PATH];
-			OPENFILENAME ofn;
-			PrepareFile(filename, &ofn, sizeof(ofn), PATTERNLOAD);
-
-			if (GetOpenFileName(&ofn))
 			{
-				ifstream in(filename);
-				string line;
-				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				char filename[MAX_PATH];
+				OPENFILENAME ofn;
+				PrepareFile(filename, &ofn, sizeof(ofn), PATTERNLOAD);
+
+				if (GetOpenFileName(&ofn))
 				{
-					in >> line;
-					for (int j = 0; j < TOTALFRETS; j++)
+					ifstream in(filename);
+					string line;
+					for (int i = TOTALSTRINGS - 1; i >= 0; i--)
 					{
-						pattern[i][j] = (line[j] == '+');
+						in >> line;
+						for (int j = 0; j < TOTALFRETS; j++)
+						{
+							pattern[i][j] = (line[j] == '+');
+						}
+						in.ignore();
 					}
-					in.ignore();
+					in.close();
 				}
-				in.close();
+				UpdateWindow(hWnd, &cr);
 			}
-			UpdateWindow(hWnd, &cr);
 			return 1;
-		}
 
 		case ID_FILE_SAVEPATTERNAS:
-		{
-			char filename[MAX_PATH];
-			OPENFILENAME ofn;
-			PrepareFile(filename, &ofn, sizeof(ofn), PATTERNSAVE);
-
-			if (GetSaveFileName(&ofn))
 			{
-				ofstream out(filename);
-				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				char filename[MAX_PATH];
+				OPENFILENAME ofn;
+				PrepareFile(filename, &ofn, sizeof(ofn), PATTERNSAVE);
+
+				if (GetSaveFileName(&ofn))
 				{
-					for (int j = 0; j < TOTALFRETS; j++)
+					ofstream out(filename);
+					for (int i = TOTALSTRINGS - 1; i >= 0; i--)
 					{
-						out << (pattern[i][j] ? "+" : "-");
+						for (int j = 0; j < TOTALFRETS; j++)
+						{
+							out << (pattern[i][j] ? "+" : "-");
+						}
+						out << "\n";
 					}
-					out << "\n";
+					out.close();
 				}
-				out.close();
 			}
 			return 1;
-		}
 
 		case ID_FILE_LOADDEFAULTTUNING:
 			for (int i = 0; i < TOTALSTRINGS; i++)
@@ -443,45 +443,72 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			return 1;
 
 		case ID_FILE_LOADTUNING:
-		{
-			char filename[MAX_PATH];
-			OPENFILENAME ofn;
-			PrepareFile(filename, &ofn, sizeof(ofn), TUNINGLOAD);
-			
-			if (GetOpenFileName(&ofn))
 			{
-				ifstream in(filename);
-				string line;
-				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				char filename[MAX_PATH];
+				OPENFILENAME ofn;
+				PrepareFile(filename, &ofn, sizeof(ofn), TUNINGLOAD);
+				
+				if (GetOpenFileName(&ofn))
 				{
-					in >> line;
-					tuning[i] = line;
-					SetDlgItemText(hWnd, IDC_EDIT1 + i, tuning[i].c_str());
+					ifstream in(filename);
+					string line;
+					for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+					{
+						in >> line;
+						tuning[i] = line;
+						SetDlgItemText(hWnd, IDC_EDIT1 + i, tuning[i].c_str());
+					}
+					in.close();
 				}
-				in.close();
+				UpdateWindow(hWnd, &cr);
 			}
-			UpdateWindow(hWnd, &cr);
 			return 1;
-		}
 
 		case ID_FILE_SAVETUNINGAS:
-		{
-			char filename[MAX_PATH];
-			OPENFILENAME ofn;
-			PrepareFile(filename, &ofn, sizeof(ofn), TUNINGSAVE);
-
-			if (GetSaveFileName(&ofn))
 			{
-				ofstream out(filename);
-				for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+				char filename[MAX_PATH];
+				OPENFILENAME ofn;
+				PrepareFile(filename, &ofn, sizeof(ofn), TUNINGSAVE);
+
+				if (GetSaveFileName(&ofn))
 				{
-					out << tuning[i];
-					out << "\n";
+					ofstream out(filename);
+					for (int i = TOTALSTRINGS - 1; i >= 0; i--)
+					{
+						out << tuning[i];
+						out << "\n";
+					}
+					out.close();
 				}
-				out.close();
 			}
 			return 1;
-		}
+
+		case ID_FILE_SAVESCREENSHOTCLIPBOARD:
+			{
+				RECT scr, er;
+				GetWindowRect(EditControlHWNDs[0], &er);
+				GetClientRect(hWnd, &scr);
+				ClientToScreen(hWnd, reinterpret_cast<POINT*>(&scr.left));  // top-left
+				ClientToScreen(hWnd, reinterpret_cast<POINT*>(&scr.right)); // bottom-right
+				int w = scr.right - er.left; // from edit control
+				int h = scr.bottom - scr.top;
+
+				HDC     hScreen = GetDC(NULL);
+				HDC     hDC     = CreateCompatibleDC(hScreen);
+				HBITMAP hBitmap = CreateCompatibleBitmap(hScreen, w, h);
+				HGDIOBJ old_obj = SelectObject(hDC, hBitmap);
+				BOOL    bRet    = BitBlt(hDC, 0, 0, w, h, hScreen, er.left, scr.top, SRCCOPY);
+
+				OpenClipboard(NULL);
+				EmptyClipboard();
+				SetClipboardData(CF_BITMAP, hBitmap);
+				CloseClipboard();
+				SelectObject(hDC, old_obj);
+				DeleteDC(hDC);
+				ReleaseDC(NULL, hScreen);
+				DeleteObject(hBitmap);
+			}
+			return 1;
 
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
