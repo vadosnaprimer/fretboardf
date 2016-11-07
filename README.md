@@ -1,8 +1,8 @@
 # FretboardF
-
-![Snapshot](http://i.imgur.com/hOHAIql.png)
-
 A Win32 tool for creating melody or scale structures and observing them on the standard fretboard layout.
+
+# View
+![Snapshot](http://i.imgur.com/hOHAIql.png)
 
 # Features:
 * Set and clear notes :: Left-Click
@@ -13,5 +13,8 @@ A Win32 tool for creating melody or scale structures and observing them on the s
 
 # Repository
 https://github.com/vadosnaprimer/fretboardf
+
+# License
+MIT
 
 Copyright (c) 2016 feos
