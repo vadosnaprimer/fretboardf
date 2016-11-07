@@ -221,19 +221,43 @@ BOOL CALLBACK DialogProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
 		if (lpnmud->hdr.code == UDN_DELTAPOS)
 		{
-			int offset;
 			int str = lpnmud->hdr.idFrom - IDC_SPIN1;
-			for (offset = 0; offset < TOTALNOTES; offset++)
+			if (GetKeyState(VK_SHIFT) < 0)
 			{
-				if (notes[offset] == tuning[str])
-					break;
+				if (lpnmud->iDelta > 0)
+				{
+					bool temp = pattern[str][0];
+					for (int i = 0; i < TOTALFRETS - 1; i++)
+					{
+						pattern[str][i] = pattern[str][i + 1];
+					}
+					pattern[str][TOTALFRETS - 1] = temp;
+				}
+				else
+				{
+					bool temp = pattern[str][TOTALFRETS - 1];
+					for(int i = TOTALFRETS - 1; i > 0; i--)
+					{
+						pattern[str][i] = pattern[str][i - 1];
+					}
+					pattern[str][0] = temp;
+				}
 			}
-			if (offset == 0)
-				offset = TOTALNOTES;
-			if (lpnmud->iDelta > 0)
-				tuning[str] = notes[(offset + 1) % TOTALNOTES];
 			else
-				tuning[str] = notes[offset - 1];
+			{
+				int offset;
+				for (offset = 0; offset < TOTALNOTES; offset++)
+				{
+					if (notes[offset] == tuning[str])
+						break;
+				}
+				if (offset == 0)
+					offset = TOTALNOTES;
+				if (lpnmud->iDelta > 0)
+					tuning[str] = notes[(offset + 1) % TOTALNOTES];
+				else
+					tuning[str] = notes[offset - 1];
+			}
 			SetDlgItemText(hWnd, IDC_EDIT1 + str, tuning[str].c_str());
 			UpdateWindow(hWnd, &cr);
 		}
